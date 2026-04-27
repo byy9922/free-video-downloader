@@ -51,6 +51,28 @@ class VideoDownloader:
             return f"{hours}:{minutes:02d}:{secs:02d}"
         return f"{minutes}:{secs:02d}"
 
+    def _prepare_ydl_opts(self, url: str, base_opts: dict) -> dict:
+        """为特定平台（如 BiliBili）注入特定的请求配置（Cookies, Headers 等）"""
+        opts = base_opts.copy()
+        if "bilibili.com" in url or "b23.tv" in url:
+            opts["http_headers"] = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                "Referer": "https://www.bilibili.com/",
+                "Origin": "https://www.bilibili.com",
+            }
+            # 尝试加载常见的本地浏览器 Cookies 以绕过 Bilibili 412 错误机制
+            for browser in ["edge", "chrome", "firefox", "chromium"]:
+                try:
+                    test_opts = {"cookiesfrombrowser": (browser,), "quiet": True}
+                    with yt_dlp.YoutubeDL(test_opts) as ydl:
+                        # 只要能成功提取出 cookies 就使用该浏览器
+                        if getattr(ydl, "cookiejar", None) is not None:
+                            opts["cookiesfrombrowser"] = (browser,)
+                            break
+                except Exception:
+                    continue
+        return opts
+
     def parse_video(self, url: str) -> dict:
         """解析视频信息，不下载文件"""
         ydl_opts = {
@@ -59,6 +81,8 @@ class VideoDownloader:
             "extract_flat": False,
             "noplaylist": True,
         }
+        ydl_opts = self._prepare_ydl_opts(url, ydl_opts)
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
@@ -165,6 +189,8 @@ class VideoDownloader:
             ydl_opts["ffmpeg_location"] = self.ffmpeg_path
             ydl_opts["merge_output_format"] = "mp4"
 
+        ydl_opts = self._prepare_ydl_opts(url, ydl_opts)
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
@@ -203,6 +229,8 @@ class VideoDownloader:
             "no_warnings": True,
             "noplaylist": True,
         }
+        
+        ydl_opts = self._prepare_ydl_opts(url, ydl_opts)
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)

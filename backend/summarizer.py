@@ -1,4 +1,4 @@
-"""AI 视频总结模块：字幕提取 + DeepSeek 大模型总结"""
+"""AI 视频总结模块：字幕提取 + MiniMax 大模型总结（通过 OpenAI 兼容 API）"""
 
 import json
 import os
@@ -278,17 +278,20 @@ class SubtitleExtractor:
 
 
 class VideoSummarizer:
-    """使用 DeepSeek API 生成视频总结、思维导图、问答"""
+    """使用 MiniMax API（OpenAI 兼容）生成视频总结、思维导图、问答"""
 
     def __init__(self):
-        api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        api_key = os.getenv("MINIMAX_API_KEY", "")
         if not api_key:
-            raise ValueError("DEEPSEEK_API_KEY 环境变量未设置")
+            raise ValueError("MINIMAX_API_KEY 环境变量未设置，请在 .env 文件中配置")
+        # MiniMax 中国站 OpenAI 兼容 API，base_url 为 https://api.minimaxi.com/v1
+        # 注意：国际站是 api.minimax.io，中国站是 api.minimaxi.com（多一个 i）
         self.client = OpenAI(
             api_key=api_key,
-            base_url="https://api.deepseek.com",
+            base_url="https://api.minimaxi.com/v1",
         )
-        self.model = "deepseek-chat"
+        # 支持通过环境变量自定义模型，默认使用 MiniMax-M2.7
+        self.model = os.getenv("LLM_MODEL", "MiniMax-M2.7")
 
     def summarize_stream(self, subtitle_text: str, language: str = "zh"):
         """流式生成视频总结，yield 每个 token"""
